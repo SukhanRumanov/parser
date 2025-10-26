@@ -1,0 +1,107 @@
+from sqlalchemy import create_engine, Column, Integer, Text, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+import logging
+import psycopg2
+
+logger = logging.getLogger(__name__)
+
+Base = declarative_base()
+
+
+class News(Base):
+    __tablename__ = 'news'
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    date = Column(DateTime, nullable=False)
+    text = Column(Text)
+    link = Column(Text, unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class Database:
+    def __init__(self, dbname="news_db", user="postgres", password="123456", host="localhost", port="5432"):
+        try:
+            self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
+            self.Session = sessionmaker(bind=self.engine)
+            with self.engine.connect():
+                pass
+        except:
+            conn = psycopg2.connect(
+                dbname='postgres',
+                user=user,
+                password=password,
+                host=host,
+                port=port
+            )
+            conn.autocommit = True
+            cursor = conn.cursor()
+            cursor.execute(f"CREATE DATABASE {dbname}")
+            cursor.close()
+            conn.close()
+
+            self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
+            self.Session = sessionmaker(bind=self.engine)
+
+        Base.metadata.create_all(self.engine)
+
+    def get_session(self):
+        return self.Session()
+
+    def link_exists(self, link):
+        session = self.get_session()
+        try:
+            return session.query(News).filter(News.link == link).first() is not None
+        finally:
+            session.close()
+
+    def insert_news(self, news_list):
+        if not news_list:
+            return 0
+
+        session = self.get_session()
+        try:
+            for news_item in news_list:
+                news = News(
+                    title=news_item['title'],
+                    date=news_item['date'],
+                    text=news_item['text'],
+                    link=news_item['link']
+                )
+                session.add(news)
+            session.commit()
+            return len(news_list)
+        except:
+            session.rollback()
+            return 0
+        finally:
+            session.close()
+
+    def get_news_count(self):
+        session = self.get_session()
+        try:
+            return session.query(News).count()
+        finally:
+            session.close()
+
+    def delete_old_news(self, days_old=1):
+        session = self.get_session()
+        try:
+            from datetime import timedelta
+            cutoff_date = datetime.now() - timedelta(days=days_old)
+            result = session.query(News).filter(News.date < cutoff_date).delete()
+            session.commit()
+            return result
+        except:
+            session.rollback()
+            return 0
+        finally:
+            session.close()
+
+    def get_news_by_id(self, news_id):
+        session = self.get_session()
+        try:
+            return session.query(News).filter(News.id == news_id).first()
+        finally:
+            session.close()
