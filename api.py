@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException
 from db import Database, News
 from pydantic import BaseModel
 from typing import Optional
+from params import db_params
 
 app = FastAPI(title="News Parser API")
-db = Database()
+db = Database(db_params)
 
 
 class NewsResponse(BaseModel):

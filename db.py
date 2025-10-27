@@ -22,7 +22,12 @@ class News(Base):
 
 
 class Database:
-    def __init__(self, dbname="news_db", user="postgres", password="123456", host = "localhost", port="5432"):
+    def __init__(self, db_params):
+        dbname = db_params['dbname']
+        user = db_params['user']
+        password = db_params['password']
+        host = db_params['host']
+        port = db_params['port']
         try:
             self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
             self.Session = sessionmaker(bind=self.engine)

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Scheduler:
     def __init__(self, db_params=None):
-        self.db = Database(**(db_params or {}))
+        self.db = Database(db_params)
         self.is_running = False
 
     async def run_pars(self, is_first_run=False):

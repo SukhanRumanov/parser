@@ -3,18 +3,12 @@ import logging
 from scheduler import Scheduler
 import uvicorn
 from api import app
-import os
+from params import db_params
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 async def run_scheduler():
-    db_params = {
-        'dbname': 'news_db',
-        'user': 'postgres',
-        'password': '123456',
-        'host': 'localhost',
-        'port': '5432'
-    }
     scheduler = Scheduler(db_params=db_params)
     await scheduler.start(initial_run=True)
 
@@ -26,10 +20,14 @@ async def main():
     server = uvicorn.Server(config)
     try:
         await server.serve()
+        time.sleep(1)
     finally:
         task.cancel()
         logging.info("Планировщик остановлен")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info('Программа остановлена')
