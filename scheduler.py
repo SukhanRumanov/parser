@@ -1,8 +1,8 @@
-import schedule
-import time
+import asyncio
 import logging
 from db import Database
 from pars import parse_news
+import schedule
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +12,8 @@ class Scheduler:
         self.db = Database(**(db_params or {}))
         self.is_running = False
 
-    def run_parsing_job(self, is_first_run=False):
+    async def run_pars(self, is_first_run=False):
         try:
-            logger.info("Запуск парсера...")
             news = parse_news(is_first_run=is_first_run)
             if not is_first_run:
                 filtered_news = [item for item in news if not self.db.link_exists(item['link'])]
@@ -32,7 +31,7 @@ class Scheduler:
         except Exception as e:
             logger.error(f"Ошибка при выполнении задачи парсинга: {e}")
 
-    def cleanup_old_news(self, days_old=1):
+    async def delet_old(self, days_old=1):
         try:
             logger.info(f"Запуск очистки новостей старше {days_old} дней")
             deleted_count = self.db.delete_old_news(days_old)
@@ -43,35 +42,21 @@ class Scheduler:
             return 0
 
     def setup_schedule(self):
-        schedule.every(1).hours.do(self.run_parsing_job)
-        schedule.every().day.at("02:00").do(self.cleanup_old_news, days_old=1)
-        logger.info("Расписание настроено: парсинг каждый час, очистка старых новостей в 02:00")
+        schedule.every(1).hours.do(self.run_pars)
+        schedule.every().day.at("00:00").do(self.delet_old, 1)
+        logger.info("Обновление парсера каждый день в 00.00")
 
-    def start(self, initial_run=True):
+    async def start(self, initial_run=True):
         if self.is_running:
-            logger.warning("Планировщик уже запущен")
             return
         self.is_running = True
 
         if initial_run:
-            logger.info("=== ПЕРВЫЙ ЗАПУСК ПАРСЕРА ===")
-            self.run_parsing_job(is_first_run=True)
+            logger.info("Запуск парсера")
+            await self.run_pars(is_first_run=True)
 
         self.setup_schedule()
+        while self.is_running:
+            await schedule.run_pending()
+            await asyncio.sleep(60)
 
-        logger.info("Планировщик запущен. Ожидание следующих запусков по расписанию...")
-
-        try:
-            while self.is_running:
-                schedule.run_pending()
-                time.sleep(60)
-
-        except KeyboardInterrupt:
-            logger.info("Планировщик остановлен пользователем")
-            self.stop()
-
-    def stop(self):
-        """Остановка планировщика"""
-        self.is_running = False
-        schedule.clear()
-        logger.info("Планировщик остановлен")

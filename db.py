@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import logging
 import psycopg2
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class News(Base):
 
 
 class Database:
-    def __init__(self, dbname="news_db", user="postgres", password="123456", host="localhost", port="5432"):
+    def __init__(self, dbname="news_db", user="postgres", password="123456", host = "localhost", port="5432"):
         try:
             self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
             self.Session = sessionmaker(bind=self.engine)
@@ -84,13 +85,11 @@ class Database:
             return session.query(News).count()
         finally:
             session.close()
-
-    def delete_old_news(self, days_old=1):
+    def delete_old_news(self, days_old):
         session = self.get_session()
         try:
-            from datetime import timedelta
-            cutoff_date = datetime.now() - timedelta(days=days_old)
-            result = session.query(News).filter(News.date < cutoff_date).delete()
+            end_date = datetime.now() - timedelta(days=days_old)
+            result = session.query(News).filter(News.date < end_date).delete()
             session.commit()
             return result
         except:
