@@ -31,20 +31,9 @@ class Scheduler:
         except Exception as e:
             logger.error(f"Ошибка при выполнении задачи парсинга: {e}")
 
-    async def delet_old(self, days_old=1):
-        try:
-            logger.info(f"Запуск очистки новостей старше {days_old} дней")
-            deleted_count = self.db.delete_old_news(days_old)
-            logger.info(f"Очистка завершена. Удалено {deleted_count} старых новостей")
-            return deleted_count
-        except Exception as e:
-            logger.error(f"Ошибка при очистке старых новостей: {e}")
-            return 0
-
     def setup_schedule(self):
         schedule.every(1).hours.do(self.run_pars)
-        schedule.every().day.at("00:00").do(self.delet_old, 1)
-        logger.info("Обновление парсера каждый день в 00.00")
+        logger.info("Парсер будет запускаться каждый час")
 
     async def start(self, initial_run=True):
         if self.is_running:
@@ -59,4 +48,3 @@ class Scheduler:
         while self.is_running:
             await schedule.run_pending()
             await asyncio.sleep(60)
-

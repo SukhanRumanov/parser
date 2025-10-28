@@ -20,7 +20,6 @@ class News(Base):
     link = Column(Text, unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
-
 class Database:
     def __init__(self, db_params):
         dbname = db_params['dbname']
@@ -28,27 +27,15 @@ class Database:
         password = db_params['password']
         host = db_params['host']
         port = db_params['port']
-        try:
-            self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
-            self.Session = sessionmaker(bind=self.engine)
-            with self.engine.connect():
-                pass
-        except:
-            conn = psycopg2.connect(
-                dbname='postgres',
-                user=user,
-                password=password,
-                host=host,
-                port=port
-            )
-            conn.autocommit = True
-            cursor = conn.cursor()
-            cursor.execute(f"CREATE DATABASE {dbname}")
-            cursor.close()
-            conn.close()
 
-            self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
-            self.Session = sessionmaker(bind=self.engine)
+        self.engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
+        self.Session = sessionmaker(bind=self.engine)
+        try:
+            with self.engine.connect():
+                logger.info(f"Успешное подключение к базе данных {dbname}")
+        except Exception as e:
+            logger.error(f"Ошибка подключения к базе данных: {e}")
+            raise
 
         Base.metadata.create_all(self.engine)
 
@@ -88,18 +75,6 @@ class Database:
         session = self.get_session()
         try:
             return session.query(News).count()
-        finally:
-            session.close()
-    def delete_old_news(self, days_old):
-        session = self.get_session()
-        try:
-            end_date = datetime.now() - timedelta(days=days_old)
-            result = session.query(News).filter(News.date < end_date).delete()
-            session.commit()
-            return result
-        except:
-            session.rollback()
-            return 0
         finally:
             session.close()
 
